@@ -15,7 +15,7 @@ void setup() {
 
 void loop() {
   // On traite la commande dès qu'un '\n' est reçu
-  if (commandComplete) {
+  if (commandComplete) {s
     executeAction(inputString); 
     inputString = "";           
     commandComplete = false;
