@@ -10,6 +10,7 @@ try:
     arduino = serial.Serial(port='COM3', baudrate=9600, timeout=1)
     time.sleep(2) # Attente du reboot de l'Arduino
     print("✅ Connecté !")
+    fichier.write(f"Session Started at : " + str(datetime.now()))
 except Exception as e:
     print(f"❌ Erreur : {e}")
     exit()
@@ -19,9 +20,10 @@ def send_order(order):
     arduino.write(message.encode()) # Envoi en octets
     time.sleep(0.1)
     value = 0
-    print(f"Robot dit : data :")
+    print(f"Robot dit :")
 
     if cmd == "DATA" :
+        print(f"DATA : " + str(datetime.now()))
         fichier.write("\nData : " + str(datetime.now()) + " \n")
         for i in range (0, 5) :
             arduino.reset_input_buffer()
@@ -41,6 +43,7 @@ while True:
     if cmd == "QUIT":
         send_order("QUIT")
         print("Fermeture...")
+        fichier.write(f"Session Stopped at : " + str(datetime.now()) + "\n\n")
         fichier.close()
         arduino.close()
         break
