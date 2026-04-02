@@ -1,5 +1,6 @@
 import serial
 import time
+import random
 
 try:
     print("Connexion sur COM3...")
@@ -15,17 +16,26 @@ def send_order(order):
     arduino.write(message.encode()) # Envoi en octets
     time.sleep(0.1)
     response = arduino.readline().decode().strip() # Réception et décodage
-    print(f"Robot dit : {response}")
+    value = 0
+    print(f"Robot dit : data :")
+    if cmd == "DATA" :
+        for i in range (0, 5) :
+            arduino.reset_input_buffer()
+            arduino.write(message.encode())
+            time.sleep(0.1)
+            value = arduino.readline().decode().strip()
+            print(f"Value : {value}")        
+
+fichier = open('dataTest.txt', 'w')
 
 # Boucle principale interactive
 while True:
-    cmd = input("Commande (GO/STOP/QUIT) : ").upper()
+    cmd = input("Commande (GO/STOP/DATA/QUIT) : ").upper()
     
     if cmd == "QUIT":
         send_order("QUIT") # On prévient l'Arduino
         print("Fin du programme. Fermeture du port...")
         arduino.close() # Libération du port COM3
         break # Sortie de la boucle
-        
+  
     send_order(cmd)
-
