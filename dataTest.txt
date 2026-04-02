@@ -1,0 +1,35 @@
+
+Data : 2026-04-02 20:28:58.668034 
+Value #1 : 159
+Value #2 : 100
+Value #3 : 118
+Value #4 : 194
+Value #5 : 198
+
+Data : 2026-04-02 20:29:00.437186 
+Value #1 : 152
+Value #2 : 213
+Value #3 : 184
+Value #4 : 113
+Value #5 : 110
+
+Data : 2026-04-02 20:29:36.520962 
+Value #1 : 207
+Value #2 : 189
+Value #3 : 117
+Value #4 : 101
+Value #5 : 171
+
+Data : 2026-04-02 20:29:38.773933 
+Value #1 : 128
+Value #2 : 99
+Value #3 : 178
+Value #4 : 211
+Value #5 : 151
+
+Data : 2026-04-02 20:29:40.725112 
+Value #1 : 174
+Value #2 : 216
+Value #3 : 161
+Value #4 : 101
+Value #5 : 126

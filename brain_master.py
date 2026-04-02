@@ -1,6 +1,9 @@
 import serial
 import time
 import random
+from datetime import datetime
+
+fichier = open('dataTest.txt', 'a')
 
 try:
     print("Connexion sur COM3...")
@@ -15,27 +18,41 @@ def send_order(order):
     message = order + "\n"
     arduino.write(message.encode()) # Envoi en octets
     time.sleep(0.1)
-    response = arduino.readline().decode().strip() # Réception et décodage
     value = 0
     print(f"Robot dit : data :")
+
     if cmd == "DATA" :
+        fichier.write("\nData : " + str(datetime.now()) + " \n")
         for i in range (0, 5) :
             arduino.reset_input_buffer()
-            arduino.write(message.encode())
             time.sleep(0.1)
+            arduino.write(message.encode())
             value = arduino.readline().decode().strip()
-            print(f"Value : {value}")        
-
-fichier = open('dataTest.txt', 'w')
+            
+            if(value!=None) :
+                print(f"Value : {value}")
+                fichier.write(f"Value #{i+1} : {value}\n")
+                fichier.flush()
 
 # Boucle principale interactive
 while True:
-    cmd = input("Commande (GO/STOP/DATA/QUIT) : ").upper()
+    cmd = input("Commande (GO/STOP/DATA/QUIT/CLEAR) : ").upper()
     
     if cmd == "QUIT":
-        send_order("QUIT") # On prévient l'Arduino
-        print("Fin du programme. Fermeture du port...")
-        arduino.close() # Libération du port COM3
-        break # Sortie de la boucle
+        send_order("QUIT")
+        print("Fermeture...")
+        fichier.close()
+        arduino.close()
+        break
+
+    elif cmd == "CLEAR":
+        # Procédure de nettoyage du fichier
+        fichier.close()
+        open('dataTest.txt', 'w').close() # Écrase tout
+        fichier = open('dataTest.txt', 'a') # Prêt pour la suite
+        print("✨ Le fichier dataTest.txt est de nouveau vierge.")
+        # On ne l'envoie pas à l'Arduino car c'est une commande interne au PC
   
-    send_order(cmd)
+    else:
+        # Pour GO, STOP et DATA, on envoie à l'Arduino
+        send_order(cmd)
