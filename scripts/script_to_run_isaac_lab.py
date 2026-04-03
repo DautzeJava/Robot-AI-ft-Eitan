@@ -18,11 +18,6 @@ import omni.isaac.lab_tasks  # This registers the default tasks
 # We will use a default "AnyDrive" or "Cartpole" just to test your PPO first
 env_cfg = gym.make("Isaac-Cartpole-v0") # Swap this with your car later
 
-# 4. Your Scratch PPO Setup
-# Assuming your class is named 'CustomPPO'
-# from my_ppo_code import CustomPPO
-# agent = CustomPPO(state_dim=env.observation_space.shape[1], action_dim=env.action_space.shape[0])
-
 # 5. The Training Loop
 obs, _ = env_cfg.reset()
 
