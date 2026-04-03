@@ -1,0 +1,19 @@
+
+Data : 2026-04-03 19:35:17.782265 
+Value #1 : 1023
+Value #2 : 815
+Value #3 : 0
+Value #4 : 429
+Value #5 : 1023
+Session Stopped at : 2026-04-03 19:35:19.421439
+
+--- Session started at : 2026-04-03 19:35:27.317430 ---
+
+Data : 2026-04-03 19:35:28.381383 
+Value #1 : 1023
+Value #2 : 512
+Value #3 : 0
+Value #4 : 678
+Value #5 : 1023
+Session Stopped at : 2026-04-03 19:35:29.769345
+

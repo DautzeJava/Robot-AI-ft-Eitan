@@ -1,16 +1,30 @@
 import serial
+import os
 import time
 import random
+import csv
 from datetime import datetime
 
-fichier = open('dataTest.txt', 'a')
+dataSetLidarOS = 'dataSetLidar.csv'
+nouveau_fichier = not os.path.exists(dataSetLidarOS) or os.stat(dataSetLidarOS).st_size == 0
+
+fichier_txt = open('dataFullSetDev.txt', 'a', encoding='utf-8')
+fichier_csv = open('dataSetLidar.csv', 'a', newline='', encoding='utf-8')
+csv_writer = csv.writer(fichier_csv)
+
+if nouveau_fichier:
+    csv_writer.writerow(['timestamp', 'sensor_type', 'distance'])
+    fichier_csv.flush() # On force l'écriture pour être sûr
+    print("📝 Nouveau fichier détecté : En-tête ajouté.")
 
 try:
     print("Connexion sur COM3...")
     arduino = serial.Serial(port='COM3', baudrate=9600, timeout=1)
     time.sleep(2) # Attente du reboot de l'Arduino
     print("✅ Connecté !")
-    fichier.write(f"Session Started at : " + str(datetime.now()))
+    fichier_txt.write(f"--- Session started at : {datetime.now()} ---\n")
+    
+
 except Exception as e:
     print(f"❌ Erreur : {e}")
     exit()
@@ -24,17 +38,20 @@ def send_order(order):
 
     if cmd == "DATA" :
         print(f"DATA : " + str(datetime.now()))
-        fichier.write("\nData : " + str(datetime.now()) + " \n")
+        fichier_txt.write("\nData : " + str(datetime.now()) + " \n")
         for i in range (0, 5) :
             arduino.reset_input_buffer()
             time.sleep(0.1)
             arduino.write(message.encode())
             value = arduino.readline().decode().strip()
-            
-            if(value!=None) :
+        
+            if value :
+                horodatage = time.time()
                 print(f"Value : {value}")
-                fichier.write(f"Value #{i+1} : {value}\n")
-                fichier.flush()
+                csv_writer.writerow([horodatage, "LIDAR", value])
+                fichier_csv.flush()
+                fichier_txt.write(f"Value #{i+1} : {value}\n")
+                fichier_txt.flush()
 
 # Boucle principale interactive
 while True:
@@ -43,18 +60,28 @@ while True:
     if cmd == "QUIT":
         send_order("QUIT")
         print("Fermeture...")
-        fichier.write(f"Session Stopped at : " + str(datetime.now()) + "\n\n")
-        fichier.close()
+        fichier_txt.write(f"Session Stopped at : " + str(datetime.now()) + "\n\n")
+        fichier_txt.close()
+        fichier_csv.close()
         arduino.close()
         break
 
     elif cmd == "CLEAR":
-        # Procédure de nettoyage du fichier
-        fichier.close()
-        open('dataTest.txt', 'w').close() # Écrase tout
-        fichier = open('dataTest.txt', 'a') # Prêt pour la suite
-        print("✨ Le fichier dataTest.txt est de nouveau vierge.")
-        # On ne l'envoie pas à l'Arduino car c'est une commande interne au PC
+        # 1. Fermeture des fichiers en cours
+        fichier_txt.close()
+        fichier_csv.close()
+        # 2. Vidage des fichiers (ATTENTION : ajout de .txt ici)
+        open('dataFullSetDev.txt', 'w', encoding='utf-8').close() 
+        open('dataSetLidar.csv', 'w', encoding='utf-8').close()
+        # 3. Réouverture propre
+        fichier_txt = open('dataFullSetDev.txt', 'a', encoding='utf-8') 
+        fichier_csv = open('dataSetLidar.csv', 'a', newline='', encoding='utf-8')
+        csv_writer = csv.writer(fichier_csv)
+        # 4. RÉÉCRITURE DE L'EN-TÊTE ICI
+        csv_writer.writerow(['timestamp', 'sensor_type', 'distance'])
+        fichier_csv.flush()
+        
+        print("✨ Les fichiers sont de nouveau vierges et l'en-tête CSV a été replacé.")
   
     else:
         # Pour GO, STOP et DATA, on envoie à l'Arduino
