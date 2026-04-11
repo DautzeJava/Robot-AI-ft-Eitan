@@ -1,5 +1,7 @@
 import serial
 import os
+import sys
+import io
 import time
 import random
 import csv
@@ -12,14 +14,17 @@ fichier_txt = open('dataFullSetDev.txt', 'a', encoding='utf-8')
 fichier_csv = open('dataSetLidar.csv', 'a', newline='', encoding='utf-8')
 csv_writer = csv.writer(fichier_csv)
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 if nouveau_fichier:
     csv_writer.writerow(['timestamp', 'sensor_type', 'distance'])
     fichier_csv.flush() # On force l'écriture pour être sûr
     print("📝 Nouveau fichier détecté : En-tête ajouté.")
 
 try:
-    print("Connexion sur COM3...")
-    arduino = serial.Serial(port='COM3', baudrate=9600, timeout=1)
+    print("Connexion sur COM4...")
+    arduino = serial.Serial(port='COM4', baudrate=9600, timeout=1)
     time.sleep(2) # Attente du reboot de l'Arduino
     print("✅ Connecté !")
     fichier_txt.write(f"--- Session started at : {datetime.now()} ---\n")
