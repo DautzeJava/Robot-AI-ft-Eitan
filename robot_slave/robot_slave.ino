@@ -1,77 +1,61 @@
-// 1. Définition des Pins (Hardware)
 #include <Arduino.h>
 #include <Wire.h>
 #include <VL53L1X.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
 
-const int motorPin = 9; 
-const int lidarPin = A0;
-VL53L1X sensor;
-int distance;
-
-// 2. Variables de communication
-String inputString = "";         
-bool commandComplete = false;  
-  int dataToSend = 0;  
+const int motorPin = 9;
+VL53L1X lidar;
+Adafruit_MPU6050 mpu;
+String inputString = "";
 
 void setup() {
-  Serial.begin(9600); 
-  Wire.begin();
-  Wire.setClock(400000);
-  sensor.setTimeout(500);
+  Serial.begin(115200);
   pinMode(motorPin, OUTPUT);
-  inputString.reserve(200); // Protection mémoire
+  
+  Wire.begin();
+  Wire.setClock(100000); 
 
-  if (!sensor.init()) {
-    Serial.println("Lidar initialization failed");
-  }
+  // Initialisation silencieuse
+  lidar.init();
+  lidar.setDistanceMode(VL53L1X::Long);
+  lidar.startContinuous(50);
+  
+  mpu.begin();
+  mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
 
-  sensor.setDistanceMode(VL53L1X::Long);
-  sensor.setMeasurementTimingBudget(50000);
-  sensor.startContinuous(50);
-  distance = sensor.read(distance);
-}
-
-int setData()
-{
-  dataToSend = distance;
+  // Le signal que Python attend pour savoir que tout est OK
+  Serial.println("SYSTEM_READY");
 }
 
 void loop() {
-  // On traite la commande dès qu'un '\n' est reçu
-  distance = sensor.read();
-
-  if (commandComplete) {
-    executeAction(inputString); 
-    inputString = "";           
-    commandComplete = false;
-  }
-  dataToSend = setData();
-
-}
-
-// 3. La fonction qui décode les ordres
-void executeAction(String command) {
-  if (command.startsWith("GO")) {
-    digitalWrite(motorPin, HIGH);
-    Serial.println("ACK:Moteur_ON"); 
-  } 
-  else if (command.startsWith("STOP") || command.startsWith("QUIT")) {
-    digitalWrite(motorPin, LOW);
-    Serial.println("ACK:Moteur_OFF_System_Ready");
-  }
-  else if (command.startsWith("DATA"))
-  {
-    setData();
-    Serial.println(dataToSend);
-  }
-}
-
-// 4. L'interruption Série (Asynchrone)
-void serialEvent() {
   while (Serial.available()) {
     char inChar = (char)Serial.read();
-    if (inChar == '\n') { 
-      commandComplete = true;
+    if (inChar == '\n' || inChar == '\r') {
+      inputString.trim();
+      
+      if (inputString == "GO") {
+        digitalWrite(motorPin, HIGH);
+        Serial.println("ACK:MOTEUR_ON");
+      } 
+      else if (inputString == "STOP" || inputString == "QUIT") {
+        digitalWrite(motorPin, LOW);
+        Serial.println("ACK:MOTEUR_OFF");
+      }
+      else if (inputString == "DATA") {
+        // --- On génère la ligne CSV ---
+        int d = lidar.read();
+        sensors_event_t a, g, t;
+        mpu.getEvent(&a, &g, &t);
+
+        // Format : Temps, Distance, AccX, AccY, AccZ
+        Serial.print(millis()); Serial.print(",");
+        Serial.print(d);        Serial.print(",");
+        Serial.print(a.acceleration.x, 2); Serial.print(",");
+        Serial.print(a.acceleration.y, 2); Serial.print(",");
+        Serial.println(a.acceleration.z, 2);
+      }
+      inputString = ""; 
     } else {
       inputString += inChar;
     }

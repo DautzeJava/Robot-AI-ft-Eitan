@@ -1,9 +1,3 @@
-
-Data : 2026-04-12 00:10:47.270282 
-Value #1 : 2449
-Value #2 : 2447
-Value #3 : 2447
-Value #4 : 2449
-Value #5 : 2448
-Session Stopped at : 2026-04-12 00:10:49.369433
+--- New Session started (after CLEAR) at : 2026-04-13 22:02:24.340121 ---
+--- Session ended at : 2026-04-13 22:02:25.511458 ---
 

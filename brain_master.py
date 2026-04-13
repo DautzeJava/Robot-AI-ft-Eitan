@@ -3,91 +3,121 @@ import os
 import sys
 import io
 import time
-import random
 import csv
 from datetime import datetime
 
-dataSetLidarOS = 'dataSetLidar.csv'
-nouveau_fichier = not os.path.exists(dataSetLidarOS) or os.stat(dataSetLidarOS).st_size == 0
+# --- Configuration des fichiers ---
+file_txt = 'dataFullSetDev.txt'
+file_lidar = 'dataSetLidar.csv'
+file_accel = 'dataSetAcc.csv'
 
-fichier_txt = open('dataFullSetDev.txt', 'a', encoding='utf-8')
-fichier_csv = open('dataSetLidar.csv', 'a', newline='', encoding='utf-8')
-csv_writer = csv.writer(fichier_csv)
+def initialiser_fichiers(mode='a'):
+    """Crée ou réinitialise les fichiers et ajoute les en-têtes si nécessaire."""
+    # En-têtes pour les CSV
+    if not os.path.exists(file_lidar) or mode == 'w' or os.stat(file_lidar).st_size == 0:
+        with open(file_lidar, mode, newline='', encoding='utf-8') as f:
+            csv.writer(f).writerow(['timestamp', 'sensor_type', 'distance'])
+            
+    if not os.path.exists(file_accel) or mode == 'w' or os.stat(file_accel).st_size == 0:
+        with open(file_accel, mode, newline='', encoding='utf-8') as f:
+            csv.writer(f).writerow(['timestamp', 'acc_x', 'acc_y', 'acc_z'])
+
+    # Ouverture des flux globaux
+    f_txt = open(file_txt, 'a', encoding='utf-8')
+    f_lidar = open(file_lidar, 'a', newline='', encoding='utf-8')
+    f_accel = open(file_accel, 'a', newline='', encoding='utf-8')
+    
+    return f_txt, f_lidar, f_accel, csv.writer(f_lidar), csv.writer(f_accel)
+
+# Initialisation au démarrage
+initialiser_fichiers() # Assure que les fichiers existent
+fichier_txt, fichier_lidar, fichier_accel, writer_lidar, writer_accel = initialiser_fichiers()
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-if nouveau_fichier:
-    csv_writer.writerow(['timestamp', 'sensor_type', 'distance'])
-    fichier_csv.flush() # On force l'écriture pour être sûr
-    print("📝 Nouveau fichier détecté : En-tête ajouté.")
-
 try:
     print("Connexion sur COM4...")
-    arduino = serial.Serial(port='COM4', baudrate=9600, timeout=1)
-    time.sleep(2) # Attente du reboot de l'Arduino
-    print("✅ Connecté !")
-    fichier_txt.write(f"--- Session started at : {datetime.now()} ---\n")
+    arduino = serial.Serial(port='COM4', baudrate=115200, timeout=1)
     
+    
+    # Attente du SYSTEM_READY
+    print("⏳ Attente du réveil de l'Arduino...")
+    while True:
+        line = arduino.readline().decode('utf-8', errors='ignore').strip()
+        if "SYSTEM_READY" in line:
+            print("✅ Robot prêt et connecté !")
+            break
+            
+    fichier_txt.write(f"--- Session started at : {datetime.now()} ---\n")
+    fichier_txt.flush()
 
 except Exception as e:
-    print(f"❌ Erreur : {e}")
+    print(f"❌ Erreur de connexion : {e}")
     exit()
 
-def send_order(order):
-    message = order + "\n"
-    arduino.write(message.encode()) # Envoi en octets
-    time.sleep(0.1)
-    value = 0
-    print(f"Robot dit :")
+def traiter_data(raw_str):
+    """Découpe la ligne de l'Arduino et enregistre dans les 3 fichiers."""
+    if "," in raw_str:
+        parts = raw_str.split(",")
+        if len(parts) >= 5:
+            ts = time.time()
+            dist = parts[1]
+            ax, ay, az = parts[2], parts[3], parts[4]
+            
+            # 1. Sauvegarde CSV
+            writer_lidar.writerow([ts, "LIDAR", dist])
+            writer_accel.writerow([ts, ax, ay, az])
+            
+            # 2. Sauvegarde Texte
+            fichier_txt.write(f"[{datetime.now().strftime('%H:%M:%S')}] Lidar:{dist}mm | Acc:[{ax},{ay},{az}]\n")
+            
+            # 3. Flush (Sécurité)
+            fichier_lidar.flush()
+            fichier_accel.flush()
+            fichier_txt.flush()
+            
+            print(f"💾 Enregistré : L:{dist}mm | Z:{az}")
+    else:
+        print(f"🤖 Robot dit : {raw_str}")
 
-    if cmd == "DATA" :
-        print(f"DATA : " + str(datetime.now()))
-        fichier_txt.write("\nData : " + str(datetime.now()) + " \n")
-        for i in range (0, 5) :
-            arduino.reset_input_buffer()
-            time.sleep(0.1)
-            arduino.write(message.encode())
-            value = arduino.readline().decode().strip()
-        
-            if value :
-                horodatage = time.time()
-                print(f"Value : {value}")
-                csv_writer.writerow([horodatage, "LIDAR", value])
-                fichier_csv.flush()
-                fichier_txt.write(f"Value #{i+1} : {value}\n")
-                fichier_txt.flush()
-
-# Boucle principale interactive
+# --- Boucle principale ---
 while True:
-    cmd = input("Commande (GO/STOP/DATA/QUIT/CLEAR) : ").upper()
+    cmd = input("\nCommande (GO/STOP/DATA/QUIT/CLEAR) : ").upper()
     
     if cmd == "QUIT":
-        send_order("QUIT")
-        print("Fermeture...")
-        fichier_txt.write(f"Session Stopped at : " + str(datetime.now()) + "\n\n")
-        fichier_txt.close()
-        fichier_csv.close()
+        arduino.write("STOP\n".encode())
+        print("Fermeture propre...")
+        fichier_txt.write(f"--- Session ended at : {datetime.now()} ---\n\n")
+        # Fermeture de tout
+        for f in [fichier_txt, fichier_lidar, fichier_accel]: f.close()
         arduino.close()
         break
 
     elif cmd == "CLEAR":
-        # 1. Fermeture des fichiers en cours
-        fichier_txt.close()
-        fichier_csv.close()
-        # 2. Vidage des fichiers (ATTENTION : ajout de .txt ici)
-        open('dataFullSetDev.txt', 'w', encoding='utf-8').close() 
-        open('dataSetLidar.csv', 'w', encoding='utf-8').close()
-        # 3. Réouverture propre
-        fichier_txt = open('dataFullSetDev.txt', 'a', encoding='utf-8') 
-        fichier_csv = open('dataSetLidar.csv', 'a', newline='', encoding='utf-8')
-        csv_writer = csv.writer(fichier_csv)
-        # 4. RÉÉCRITURE DE L'EN-TÊTE ICI
-        csv_writer.writerow(['timestamp', 'sensor_type', 'distance'])
-        fichier_csv.flush()
+        # 1. On écrit la fin de la session actuelle AVANT de tout effacer
+        fichier_txt.write(f"--- Session ended by CLEAR at : {datetime.now()} ---\n")
         
-        print("✨ Les fichiers sont de nouveau vierges et l'en-tête CSV a été replacé.")
-  
+        # 2. Fermeture des flux pour pouvoir manipuler les fichiers
+        for f in [fichier_txt, fichier_lidar, fichier_accel]: f.close()
+        
+        # 3. Vidage des fichiers (mode 'w' pour repartir à zéro)
+        open(file_txt, 'w', encoding='utf-8').close() 
+        
+        # 4. Réinitialisation complète (réouverture et en-têtes)
+        fichier_txt, fichier_lidar, fichier_accel, writer_lidar, writer_accel = initialiser_fichiers(mode='w')
+        
+        # 5. On marque le début de la nouvelle session "propre"
+        fichier_txt.write(f"--- New Session started (after CLEAR) at : {datetime.now()} ---\n")
+        fichier_txt.flush()
+        
+        print("✨ Fichiers réinitialisés et horodatages conservés dans le nouveau log.")
     else:
-        # Pour GO, STOP et DATA, on envoie à l'Arduino
-        send_order(cmd)
+        # Envoi de la commande à l'Arduino
+        arduino.write((cmd + "\n").encode())
+        time.sleep(0.4) # Temps de traitement
+        
+        while arduino.in_waiting > 0:
+            raw = arduino.readline().decode('utf-8', errors='ignore').strip()
+            if raw:
+                traiter_data(raw)
